@@ -1,7 +1,10 @@
 package main
 
+//first invalid user input selection makes the app quit
+//print all username already created?
+//oops, an error thrown,UNIQUE constraint failed: wallet.username, a better error message?
 //add auth to the whole db (one-way hash)?
-//add changing password feature
+//add admin table to enable admin user to authenticate before running services
 import (
 	"errors"
 	"fmt"
@@ -29,10 +32,11 @@ func main()  {
 
 func outputServices() (int, error)  {
 	var userInput int
-	fmt.Println("1.Generate a new random password")
-	fmt.Println("2.revive an old password")
-	fmt.Println("3.Change a password")
-	fmt.Println("4.quit")
+	fmt.Println("1.Create a Wallet")
+	fmt.Println("2.Restore a Wallet")
+	fmt.Println("3.Update a Wallet")
+	fmt.Println("4.Remove a wallet")
+	fmt.Println("5.quit")
 	fmt.Print("your choice:")
 	n, err := fmt.Scanln(&userInput)
 	if err != nil {
@@ -44,49 +48,74 @@ func outputServices() (int, error)  {
 	return userInput, nil
 }
 
-func runService(pickedService int) error  {
-	switch pickedService {
+func runService(userInput int) error  {
+	switch userInput {
 	case 1:
-		var wallet Wallet
 		userInput, err:=getUserInput("username:")
-		if err!=nil {
-			return err
-		}
-		password, err := GenRandomPassword()
 		if err != nil {
 			return err
 		}
-		wallet = Wallet{username: userInput, password: password}
+		wallet, err := New(userInput)
+		if err != nil {
+			return err
+		}
 		id, err := wallet.Save()
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Credential saved with ID: %d\n", id)
-		username, password := wallet.ToString()
-		log.Println("Your username:", username)
-		log.Println("Your password:", password)
-
+		walletText, err := wallet.ToString()
+		if err != nil {
+			return err
+		}
+		log.Println(walletText)
 		return nil
 	case 2:
-		userInput, err:=getUserInput("username to query:")
-		if err!=nil {
+		userInput, err := getUserInput("username to query:")
+		if err != nil {
 			return err
 		}
-		wallet, err:=QueryWallet(userInput)
-		if err!=nil {
+		walletText, err := QueryWallet(userInput)
+		if err != nil {
 			return err
 		}
-		username, password := wallet.ToString()
-		log.Println("Your username:", username)
-		log.Println("Your password:", password)
+		log.Println(walletText)
 		return nil
 	case 3:
-		log.Print("Changing a password")
+		username, err := getUserInput("username:")
+		if err != nil {
+			return err
+		}
+		wallet ,err := UpdatePassword(username)
+		if err != nil {
+			return err
+		}
+		if wallet == nil {
+			return nil
+		}
+		walletText, err := wallet.ToString()
+		if err != nil {
+			return err
+		}
+		log.Print(walletText)
 		return nil
 	case 4:
+		var wallet Wallet
+		username, err := getUserInput("username to remove:")
+		wallet.username = username
+		if err != nil {
+			return err
+		}
+		err = wallet.Remove()
+		if err != nil {
+			return err
+		}
+		log.Printf("%s deleted successfully.", username)
+		return nil
+	case 5:
 		return fmt.Errorf("exit requested")
 	default:
-		return fmt.Errorf("invalid user input given: ('%d')", pickedService)
+		return fmt.Errorf("invalid user input given: ('%d')", userInput)
 	}
 }
 

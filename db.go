@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
+	"log"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -46,7 +46,7 @@ func CreateTable() (sql.Result, error){
     return res, nil
 }
 
-func InsertRow(wallet Wallet) (int64, error) {
+func InsertWallet(wallet Wallet) (int64, error) {
     query := `INSERT INTO wallet (username, password) VALUES (?, ?)`
     secret := os.Getenv("WALLET_SECRET")
     if secret == "" {
@@ -63,20 +63,47 @@ func InsertRow(wallet Wallet) (int64, error) {
     return result.LastInsertId()
 }
 
-func QueryWallet(username string) (*Wallet, error) {
+func QueryWallet(username string) (string, error) {
     var wallet Wallet
     query:= `SELECT username, password FROM wallet WHERE username = ?`
     err := Db.QueryRow(query, username).Scan(&wallet.username, &wallet.password)
     if err != nil {
         if err == sql.ErrNoRows {
-            return nil, fmt.Errorf("username '%s' not found", username)
+            log.Printf("username '%s' not found!", username)
+            return "", nil
         }
-        return nil, err
+        return "", err
     }
-    decrypted, err := Decrypt(wallet.password, os.Getenv("WALLET_SECRET"))
+    text, err := wallet.ToString()
+    if err != nil {
+        return "", err
+    }
+    return text, nil
+}
+
+func UpdateWalletPassword(username string) (*Wallet, error) {
+    var exists bool
+    query:= `SELECT Exists (SELECT 1 FROM wallet WHERE username = ?)`
+    err := Db.QueryRow(query, username).Scan(&exists)
     if err != nil {
         return nil, err
     }
-    wallet.password = decrypted
-    return &wallet, nil
+    if !exists {
+        log.Printf("username '%s' not found", username)
+        return nil, nil
+    }
+    wallet, err := New(username)
+    if err != nil {
+        return nil,err
+    }
+    _,err = Db.Exec("UPDATE wallet SET username = ?, password = ? WHERE username = ?", wallet.username, wallet.password, wallet.username )
+        if err != nil {
+        return nil,err
+    }
+    return wallet, nil
+}
+
+func RemoveWallet(w *Wallet) error {
+    _,err := Db.Exec("DELETE FROM wallet WHERE username = ?", w.username )
+    return err
 }
