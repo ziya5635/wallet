@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"log"
+	"fmt"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -52,11 +52,7 @@ func InsertWallet(wallet Wallet) (int64, error) {
     if secret == "" {
         return 0, errors.New("WALLET_SECRET env variable not set")
     }
-    encryptedPassword, err := Encrypt(wallet.password, secret)
-    if err != nil {
-        return 0, err
-    }
-    result, err := Db.Exec(query, wallet.username, encryptedPassword)
+    result, err := Db.Exec(query, wallet.username, wallet.password)
     if err != nil {
         return 0, err
     }
@@ -69,8 +65,7 @@ func QueryWallet(username string) (string, error) {
     err := Db.QueryRow(query, username).Scan(&wallet.username, &wallet.password)
     if err != nil {
         if err == sql.ErrNoRows {
-            log.Printf("username '%s' not found!", username)
-            return "", nil
+            return "", fmt.Errorf("username '%s' not found", username)
         }
         return "", err
     }
@@ -89,8 +84,7 @@ func UpdateWalletPassword(username string) (*Wallet, error) {
         return nil, err
     }
     if !exists {
-        log.Printf("username '%s' not found", username)
-        return nil, nil
+        return nil, fmt.Errorf("username '%s' not found", username)
     }
     wallet, err := New(username)
     if err != nil {
@@ -104,6 +98,34 @@ func UpdateWalletPassword(username string) (*Wallet, error) {
 }
 
 func RemoveWallet(w *Wallet) error {
-    _,err := Db.Exec("DELETE FROM wallet WHERE username = ?", w.username )
+    var exists bool
+    query:= `SELECT Exists (SELECT 1 FROM wallet WHERE username = ?)`
+    err := Db.QueryRow(query, w.username).Scan(&exists)
+    if err != nil {
+        return err
+    }
+    if !exists {
+        return fmt.Errorf("username '%s' not found", w.username)
+    }
+    _,err = Db.Exec("DELETE FROM wallet WHERE username = ?", w.username )
     return err
+}
+
+func GetAllWallets() ([]Wallet, error) {
+    rows, err := Db.Query("SELECT username, password FROM wallet")
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var wallets []Wallet
+    for rows.Next() {
+        var wallet Wallet
+        err := rows.Scan(&wallet.username, &wallet.password)
+        if err != nil {
+            return nil, err
+        }
+        wallets = append(wallets, wallet)
+    }
+    return wallets, rows.Err()
 }

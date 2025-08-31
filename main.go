@@ -1,8 +1,5 @@
 package main
 
-//first invalid user input selection makes the app quit
-//print all username already created?
-//oops, an error thrown,UNIQUE constraint failed: wallet.username, a better error message?
 //add auth to the whole db (one-way hash)?
 //add admin table to enable admin user to authenticate before running services
 import (
@@ -10,47 +7,49 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 func main()  {
 	err := InitDatabase()
-	reportErrorAndExit("Failed to initialize database,", err)
+	reportError("Failed to initialize database,", err)
 
 	defer CloseDb()
 
 	_ ,err = CreateTable()
-	reportErrorAndExit("Failed to initialize database,", err)
+	reportError("Failed to initialize database,", err)
 
 	for {
 		userInput, err := outputServices()
-		reportErrorAndExit("Invalid user input given,", err)
+		if err != nil {
+			reportError("oops, an error thrown,", err)
+			continue
+		}
 
 		err = runService(userInput)
-		reportErrorAndExit("oops, an error thrown,", err)
+		reportError("oops, an error thrown,", err)
 	}
 }
 
-func outputServices() (int, error)  {
-	var userInput int
+func outputServices() (string, error)  {
+	var userInput string
 	fmt.Println("1.Create a Wallet")
 	fmt.Println("2.Restore a Wallet")
 	fmt.Println("3.Update a Wallet")
 	fmt.Println("4.Remove a wallet")
-	fmt.Println("5.quit")
+	fmt.Println("5.Show all wallets")
+	fmt.Println("6.quit")
 	fmt.Print("your choice:")
-	n, err := fmt.Scanln(&userInput)
+	_, err := fmt.Scanln(&userInput)
 	if err != nil {
-		return 0, err
-	}
-	if n!=1 {
-		return 0, errors.New("only one argument required")
+		return "0", err
 	}
 	return userInput, nil
 }
 
-func runService(userInput int) error  {
+func runService(userInput string) error  {
 	switch userInput {
-	case 1:
+	case "1":
 		userInput, err:=getUserInput("username:")
 		if err != nil {
 			return err
@@ -70,7 +69,7 @@ func runService(userInput int) error  {
 		}
 		log.Println(walletText)
 		return nil
-	case 2:
+	case "2":
 		userInput, err := getUserInput("username to query:")
 		if err != nil {
 			return err
@@ -81,7 +80,7 @@ func runService(userInput int) error  {
 		}
 		log.Println(walletText)
 		return nil
-	case 3:
+	case "3":
 		username, err := getUserInput("username:")
 		if err != nil {
 			return err
@@ -99,7 +98,7 @@ func runService(userInput int) error  {
 		}
 		log.Print(walletText)
 		return nil
-	case 4:
+	case "4":
 		var wallet Wallet
 		username, err := getUserInput("username to remove:")
 		wallet.username = username
@@ -112,14 +111,24 @@ func runService(userInput int) error  {
 		}
 		log.Printf("%s deleted successfully.", username)
 		return nil
-	case 5:
+	case "5":
+		wallets, err := GetAllWallets()
+		if err != nil {
+			return err
+		}
+    for i, wallet := range wallets {
+        fmt.Printf("%d. Username: %s\n", 
+            i, wallet.username)
+    }
+	return nil
+	case "6":
 		return fmt.Errorf("exit requested")
 	default:
-		return fmt.Errorf("invalid user input given: ('%d')", userInput)
+		return fmt.Errorf("invalid user input given: %s", userInput)
 	}
 }
 
-func reportErrorAndExit(message string, err error) {
+func reportError(message string, err error) {
 	if err != nil {
 		if err.Error() == "exit requested"{
 			log.Print("Goodbye!")
@@ -127,20 +136,20 @@ func reportErrorAndExit(message string, err error) {
         	os.Exit(0)
     	}
 	    log.Print(message, err)
-		CloseDb() // ← Manual cleanup before exiting
-    	os.Exit(1)	
+		// CloseDb() // ← Manual cleanup before exiting
+    	// os.Exit(1)
 	}
 }
 
 func getUserInput(text string) (string, error)  {
 	var userInput string
 	fmt.Print(text)
-	n, err := fmt.Scanln(&userInput)
-	if n!=1 {
-		return "", errors.New("too many args given")
-	}
+	_, err := fmt.Scanln(&userInput)
 	if err != nil {
 		return "", err
+	}
+	if strings.TrimSpace(userInput) == "" {
+		return "", errors.New("invalid input given")
 	}
 	return  userInput,nil
 }
