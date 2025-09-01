@@ -50,23 +50,23 @@ func main()  {
 		for {
 		name, err := getUserInput("admin user name:")
 		if err != nil {
-			reportError("Unable to get admin user,", err)
+			log.Println("Unable to get user's name")
 			continue
 		}
 		password, err := getUserInput("admin user password:")
 		if err != nil {
-			reportError("Unable to get admin password,", err)
+			log.Println("Unable to get user's password")
 			continue
 		}
 		isValid, err := LoginUser(name, password)
 		if err != nil {
-			reportError("Unable to login,", err)
+			log.Println("Unable to login, Invalid credentials given")
 			continue
 		}
 		if isValid {
 			break
 		}
-		log.Println("Invalid credentials given")
+		log.Println("Unable to login, Invalid credentials given")
 	}
 	}
 	for {
