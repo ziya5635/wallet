@@ -3,19 +3,25 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
-func Hash(plainText , secret string) string {
-    h := hmac.New(sha256.New, []byte(secret))
-    h.Write([]byte(plainText))
-    return hex.EncodeToString(h.Sum(nil))
+// Hash a password (store this in DB)
+func HashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(hash), err
+}
+
+// Compare a stored hash with user input
+func CheckPasswordHash(hash, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 func parseKey(key string) ([]byte, error) {

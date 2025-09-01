@@ -10,7 +10,7 @@ type Wallet struct{
 	password string
 }
 
-func New(username string) (*Wallet, error)  {
+func NewWallet(username string) (*Wallet, error)  {
 	var w Wallet
 	key := os.Getenv("WALLET_SECRET")
 	password, err := GenRandomPassword()
@@ -34,12 +34,12 @@ func (w *Wallet) ToString()(string, error){
 	return fmt.Sprintf("username:%s | password:%s", w.username, decrypted), nil
 }
 
-func (w *Wallet) Save()(int64, error){
-	id, err:=InsertWallet(*w)
+func (w *Wallet) Save() error {
+	_, err:=InsertWallet(w)
 	    if err != nil {
-		return 0, err
+		return err
     }
-	return id, nil
+	return nil
 }
 
 func UpdatePassword(username string) (*Wallet, error) {

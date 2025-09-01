@@ -2,9 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
-	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -30,7 +28,7 @@ func CloseDb()  {
     }
 }
 
-func CreateTable() (sql.Result, error){
+func CreateWalletTable() (sql.Result, error){
     query := `
     CREATE TABLE IF NOT EXISTS wallet (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,12 +44,61 @@ func CreateTable() (sql.Result, error){
     return res, nil
 }
 
-func InsertWallet(wallet Wallet) (int64, error) {
-    query := `INSERT INTO wallet (username, password) VALUES (?, ?)`
-    secret := os.Getenv("WALLET_SECRET")
-    if secret == "" {
-        return 0, errors.New("WALLET_SECRET env variable not set")
+func CreateUserTable() (sql.Result, error){
+    query := `
+    CREATE TABLE IF NOT EXISTS user (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`
+    
+    res, err := Db.Exec(query)
+    if err != nil {
+        return nil, err
     }
+    return res, nil
+}
+
+
+func InsertUser(user *User) (int64, error)  {
+    query := `INSERT INTO user (name, password) VALUES (?, ?)`
+    result, err := Db.Exec(query, user.name, user.password)
+    if err != nil {
+        return 0, err
+    }
+    return result.LastInsertId()
+}
+
+func QueryUser(name string) (*User, error)  {
+    var user User
+    query:= `SELECT name, password FROM user WHERE name = ?`
+    err := Db.QueryRow(query, name).Scan(&user.name, &user.password)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, fmt.Errorf("username '%s' not found", name)
+        }
+        return nil, err
+    }
+    return &user, nil
+}
+
+func CheckAnyUserExists() (bool, error) {
+    var count int
+    err := Db.QueryRow("SELECT COUNT(*) FROM user").Scan(&count)
+    if err != nil {
+        return false, err
+    }
+    if count > 0 {
+        return true, nil
+    } else {
+        fmt.Println("No users yet")
+        return false, nil
+    }
+}
+
+func InsertWallet(wallet *Wallet) (int64, error) {
+    query := `INSERT INTO wallet (username, password) VALUES (?, ?)`
     result, err := Db.Exec(query, wallet.username, wallet.password)
     if err != nil {
         return 0, err
@@ -86,7 +133,7 @@ func UpdateWalletPassword(username string) (*Wallet, error) {
     if !exists {
         return nil, fmt.Errorf("username '%s' not found", username)
     }
-    wallet, err := New(username)
+    wallet, err := NewWallet(username)
     if err != nil {
         return nil,err
     }
