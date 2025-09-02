@@ -1,13 +1,17 @@
 package main
 
-//exit after 3 times wrong logins?
-//encrypt the whole db?
+//To build for raspberry5:
+//GOOS=linux GOARCH=arm64 go build -o wallet.bin -ldflags="-s -w" .
+
 import (
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"syscall"
+
+	"golang.org/x/term"
 )
 
 func main()  {
@@ -28,16 +32,19 @@ func main()  {
     	os.Exit(1)
 	}
 	if !doesAnyUserExist {
+		fmt.Println("====================================================================================")
 		log.Println("initial setup, you won't be asked to go through this step again")
+		fmt.Println("====================================================================================")
 		name, err := getUserInput("admin user name:")
 		if err != nil {
 			reportError("Unable to get first admin user", err)
 		}
-		password, err := getUserInput("admin user password:")
+		fmt.Print("admin password:")
+		password, err := term.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			reportError("Unable to get first admin password", err)
 		}
-		user, err := NewUser(name, password)
+		user, err := NewUser(name, string(password))
 		if err != nil {
 			reportError("Unable to create new user", err)
 		}
@@ -53,12 +60,13 @@ func main()  {
 			log.Println("Unable to get user's name")
 			continue
 		}
-		password, err := getUserInput("admin user password:")
+		fmt.Print("admin password:")
+		password, err := term.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			log.Println("Unable to get user's password")
 			continue
 		}
-		isValid, err := LoginUser(name, password)
+		isValid, err := LoginUser(name, string(password))
 		if err != nil {
 			log.Println("Unable to login, Invalid credentials given")
 			continue
@@ -135,6 +143,11 @@ func runService(userInput string) error  {
 		if err != nil {
 			return err
 		}
+		oldWallet, err := QueryWallet(username)
+		if err!=nil {
+			return err
+		}
+		log.Printf(`Old wallet info: %s`, oldWallet)
 		wallet ,err := UpdatePassword(username)
 		if err != nil {
 			return err
@@ -146,7 +159,9 @@ func runService(userInput string) error  {
 		if err != nil {
 			return err
 		}
-		log.Print(walletText)
+		fmt.Println("========================================================================================")
+		log.Printf(`New wallet info: %s`, walletText)
+		fmt.Println("========================================================================================")
 		return nil
 	case "4":
 		var wallet Wallet
@@ -167,8 +182,10 @@ func runService(userInput string) error  {
 			return err
 		}
     for i, wallet := range wallets {
+		fmt.Println("======================")
         fmt.Printf("%d. Username: %s\n", 
-            i, wallet.username)
+            i+1, wallet.username)
+		fmt.Println("======================")
     }
 	return nil
 	case "6":
