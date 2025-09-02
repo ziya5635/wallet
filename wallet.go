@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -13,6 +14,11 @@ type Wallet struct{
 func NewWallet(username string) (*Wallet, error)  {
 	var w Wallet
 	key := os.Getenv("WALLET_SECRET")
+	if key == "" {
+		log.Print("WALLET_SECRET env variable not set")
+		Db.Close()
+		os.Exit(1)
+	}
 	password, err := GenRandomPassword()
 		if err!=nil {
 		return nil, err
@@ -27,7 +33,13 @@ func NewWallet(username string) (*Wallet, error)  {
 }
 
 func (w *Wallet) ToString()(string, error){
-	decrypted, err := Decrypt(w.password, os.Getenv("WALLET_SECRET"))
+	key := os.Getenv("WALLET_SECRET")
+	if key == "" {
+		log.Print("WALLET_SECRET env variable not set")
+		Db.Close()
+		os.Exit(1)
+	}
+	decrypted, err := Decrypt(w.password, key)
     if err != nil {
         return "", err
     }

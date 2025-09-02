@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"log"
 	"os"
 )
 
@@ -13,7 +13,10 @@ type User struct{
 func NewUser(name, password string) (*User,error) {
 	secret := os.Getenv("WALLET_SECRET")
     if secret == "" {
-        return nil, errors.New("WALLET_SECRET env variable not set")
+        // return nil, errors.New("WALLET_SECRET env variable not set")
+		log.Print("WALLET_SECRET env variable not set")
+		Db.Close()
+		os.Exit(1)
     }
 	encrypted, err := HashPassword(password)
 	if err != nil {
