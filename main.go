@@ -39,7 +39,7 @@ func main()  {
 		if err != nil {
 			reportError("Unable to get first admin user", err)
 		}
-		fmt.Print("admin password:")
+		fmt.Println("admin password:")
 		password, err := term.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			reportError("Unable to get first admin password", err)
